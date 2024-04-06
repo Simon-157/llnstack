@@ -8,7 +8,14 @@
 
 #define ICMP_BUFSIZ MAX_IP_PAYLOAD_SIZE
 
-struct icmp_hdr {
+// ANSI escape codes for text formatting and colors
+#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_BOLD    "\x1b[1m"
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+
+struct icmp_header {
     uint8_t type;
     uint8_t code;
     uint16_t sum;
@@ -23,67 +30,67 @@ struct icmp_echo {
     uint16_t seq;
 };
 
-static char *
-icmp_type_ntoa(uint8_t type) {
+static char * icmp_type_ntoa(uint8_t type) {
     switch (type) {
-    case ICMP_TYPE_ECHOREPLY:
-        return "EchoReply";
-    case ICMP_TYPE_DEST_UNREACH:
-        return "DestinationUnreachable";
-    case ICMP_TYPE_SOURCE_QUENCH:
-        return "SourceQuench";
-    case ICMP_TYPE_REDIRECT:
-        return "Redirect";
-    case ICMP_TYPE_ECHO:
-        return "Echo";
-    case ICMP_TYPE_TIME_EXCEEDED:
-        return "TimeExceeded";
-    case ICMP_TYPE_PARAM_PROBLEM:
-        return "ParameterProblem";
-    case ICMP_TYPE_TIMESTAMP:
-        return "Timestamp";
-    case ICMP_TYPE_TIMESTAMPREPLY:
-        return "TimestampReply";
-    case ICMP_TYPE_INFO_REQUEST:
-        return "InformationRequest";
-    case ICMP_TYPE_INFO_REPLY:
-        return "InformationReply";
+    case ICMP_TYPE_ECHOREPLY: return "EchoReply";
+    case ICMP_TYPE_DEST_UNREACH: return "DestinationUnreachable";
+    case ICMP_TYPE_SOURCE_QUENCH: return "SourceQuench";
+    case ICMP_TYPE_REDIRECT: return "Redirect";
+    case ICMP_TYPE_ECHO: return "Echo";
+    case ICMP_TYPE_TIME_EXCEEDED: return "TimeExceeded";
+    case ICMP_TYPE_PARAM_PROBLEM: return "ParameterProblem";
+    case ICMP_TYPE_TIMESTAMP: return "Timestamp";
+    case ICMP_TYPE_TIMESTAMPREPLY: return "TimestampReply";
+    case ICMP_TYPE_INFO_REQUEST: return "InformationRequest";
+    case ICMP_TYPE_INFO_REPLY: return "InformationReply";
     }
     return "Unknown";
 }
-
-static void
-icmp_dump(const uint8_t *data, size_t len)
-{
-    struct icmp_hdr *hdr;
+static void icmp_dump(const uint8_t *data, size_t len) {
+    struct icmp_header *hdr;
     struct icmp_echo *echo;
 
     flockfile(stderr);
-    hdr = (struct icmp_hdr *)data;
-    fprintf(stderr, "       type: %u (%s)\n", hdr->type, icmp_type_ntoa(hdr->type));
-    fprintf(stderr, "       code: %u\n", hdr->code);
-    fprintf(stderr, "        sum: 0x%04x (0x%04x)\n", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)data, len, -hdr->sum)));
+    hdr = (struct icmp_header *)data;
+
+    // Print type with color
+    const char* type_color = hdr->type == ICMP_TYPE_ECHO ? ANSI_COLOR_YELLOW : ANSI_COLOR_GREEN;
+    fprintf(stderr, ANSI_COLOR_BOLD "       Type: " ANSI_COLOR_RESET "%s%s (%u)\n", type_color, icmp_type_ntoa(hdr->type), hdr->type);
+
+    // Print code
+    fprintf(stderr, ANSI_COLOR_BOLD "       Code: " ANSI_COLOR_RESET "%u\n", hdr->code);
+
+    // Print checksum and calculated checksum
+    uint16_t checksum = ntoh16(hdr->sum);
+    uint16_t calculated_checksum = ntoh16(cksum16((uint16_t *)data, len, -hdr->sum));
+    const char* checksum_color = checksum == calculated_checksum ? ANSI_COLOR_GREEN : ANSI_COLOR_RED;
+    fprintf(stderr, ANSI_COLOR_BOLD "        Sum: " ANSI_COLOR_RESET "0x%04x (%s0x%04x%s)\n", checksum, checksum_color, calculated_checksum, ANSI_COLOR_RESET);
+
+    // Print ID and sequence if applicable
     switch (hdr->type) {
-    case ICMP_TYPE_ECHOREPLY:
-    case ICMP_TYPE_ECHO:
-        echo = (struct icmp_echo *)hdr;
-        fprintf(stderr, "         id: %u\n", ntoh16(echo->id));
-        fprintf(stderr, "        seq: %u\n", ntoh16(echo->seq));
-        break;
-    default:
-        fprintf(stderr, "     values: 0x%08x\n", ntoh32(hdr->values));
-        break;
+        case ICMP_TYPE_ECHOREPLY:
+        case ICMP_TYPE_ECHO:
+            echo = (struct icmp_echo *)hdr;
+            fprintf(stderr, ANSI_COLOR_BOLD "         ID: " ANSI_COLOR_RESET "%u\n", ntoh16(echo->id));
+            fprintf(stderr, ANSI_COLOR_BOLD "        Seq: " ANSI_COLOR_RESET "%u\n", ntoh16(echo->seq));
+            break;
+        default:
+            // Print values for other types
+            fprintf(stderr, ANSI_COLOR_BOLD "     Values: " ANSI_COLOR_RESET "0x%08x\n", ntoh32(hdr->values));
+            break;
     }
+
+    // Optional: Print hexadecimal dump
 #ifdef HEXDUMP
     hexdump(stderr, data, len);
 #endif
+
     funlockfile(stderr);
 }
 
-static void
-icmp_input(const uint8_t *data, size_t len, IPAddress src, IPAddress dst, struct IP_INTERFACE *iface)
+static void icmp_input(const uint8_t *data, size_t len, IPAddress src, IPAddress dst, struct IP_INTERFACE *iface)
 {
-    struct icmp_hdr *hdr;
+    struct icmp_header *hdr;
     char addr1[MAX_IP_ADDRESS_STRING_LENGTH];
     char addr2[MAX_IP_ADDRESS_STRING_LENGTH];
     char addr3[MAX_IP_ADDRESS_STRING_LENGTH];
@@ -92,7 +99,7 @@ icmp_input(const uint8_t *data, size_t len, IPAddress src, IPAddress dst, struct
         errorf("too short");
         return;
     }
-    hdr = (struct icmp_hdr *)data;
+    hdr = (struct icmp_header *)data;
     if (cksum16((uint16_t *)data, len, 0) != 0) {
         errorf("checksum error, sum=0x%04x, verify=0x%04x", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)data, len, -hdr->sum)));
         return;
@@ -106,8 +113,6 @@ icmp_input(const uint8_t *data, size_t len, IPAddress src, IPAddress dst, struct
     switch (hdr->type) {
     case ICMP_TYPE_ECHO:
         if (dst != iface->unicast) {
-            /* message addressed to broadcast address.              */
-            /* responds with the address of the received interface. */
             dst = iface->unicast;
         }
         icmp_output(ICMP_TYPE_ECHOREPLY, hdr->code, hdr->values, (uint8_t *)(hdr + 1), len - sizeof(*hdr), dst, src);
@@ -118,16 +123,15 @@ icmp_input(const uint8_t *data, size_t len, IPAddress src, IPAddress dst, struct
     }
 }
 
-int
-icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data, size_t len, IPAddress src, IPAddress dst)
+int icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data, size_t len, IPAddress src, IPAddress dst)
 {
     uint8_t buf[ICMP_BUFSIZ];
-    struct icmp_hdr *hdr;
+    struct icmp_header *hdr;
     size_t msg_len;
     char addr1[MAX_IP_ADDRESS_STRING_LENGTH];
     char addr2[MAX_IP_ADDRESS_STRING_LENGTH];
 
-    hdr = (struct icmp_hdr *)buf;
+    hdr = (struct icmp_header *)buf;
     hdr->type = type;
     hdr->code = code;
     hdr->sum = 0;
@@ -143,8 +147,7 @@ icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data, si
     return ip_send_packet(ICMP_PROTOCOL, (uint8_t *)hdr, msg_len, src, dst);
 }
 
-int
-icmp_init(void)
+int icmp_init(void)
 {
     if (ip_register_protocol("ICMP", ICMP_PROTOCOL, icmp_input) == -1) {
         errorf("ip_protocol_register() failure");

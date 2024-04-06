@@ -3,24 +3,21 @@
 #include <string.h>
 
 #include "util.h"
-// #include "net2.h"
 #include "ip2.h"
 #include "udp.h"
 
 #include "sock.h"
 
-static struct sock socks[128];
+#define MAX_SOCKS 128
+
+static struct sock socks[MAX_SOCKS];
 
 int sockaddr_pton(const char *p, struct sockaddr *n, size_t size)
 {
     struct IP_ENDPOINT ep;
 
-    if (ip_string_to_endpoint(p, &ep) == 0)
+    if (ip_string_to_endpoint(p, &ep) == 0 && size >= sizeof(struct sockaddr_in))
     {
-        if (size < sizeof(struct sockaddr_in))
-        {
-            return -1;
-        }
         ((struct sockaddr_in *)n)->sin_family = AF_INET;
         ((struct sockaddr_in *)n)->sin_port = ep.port;
         ((struct sockaddr_in *)n)->sin_addr = ep.address;
@@ -29,18 +26,12 @@ int sockaddr_pton(const char *p, struct sockaddr *n, size_t size)
     return -1;
 }
 
-char *
-sockaddr_ntop(const struct sockaddr *n, char *p, size_t size)
+char *sockaddr_ntop(const struct sockaddr *n, char *p, size_t size)
 {
     struct IP_ENDPOINT ep;
 
-    switch (n->sa_family)
+    if (n->sa_family == AF_INET && size >= MAX_IP_ENDPOINT_STRING_LENGTH)
     {
-    case AF_INET:
-        if (size < MAX_IP_ENDPOINT_STRING_LENGTH)
-        {
-            return NULL;
-        }
         ep.port = ((struct sockaddr_in *)n)->sin_port;
         ep.address = ((struct sockaddr_in *)n)->sin_addr;
         return ip_endpoint_to_string(&ep, p, size);
@@ -48,35 +39,29 @@ sockaddr_ntop(const struct sockaddr *n, char *p, size_t size)
     return NULL;
 }
 
-static struct sock *
-sock_alloc(void)
+static struct sock *sock_alloc(void)
 {
-    struct sock *entry;
-
-    for (entry = socks; entry < tailof(socks); entry++)
+    for (size_t i = 0; i < MAX_SOCKS; i++)
     {
-        if (!entry->used)
+        if (!socks[i].used)
         {
-            entry->used = 1;
-            return entry;
+            socks[i].used = 1;
+            return &socks[i];
         }
     }
     return NULL;
 }
 
-static int
-sock_free(struct sock *s)
+static int sock_free(struct sock *s)
 {
     memset(s, 0, sizeof(*s));
     return 0;
 }
 
-static struct sock *
-sock_get(int id)
+static struct sock *sock_get(int id)
 {
-    if (id < 0 || id >= (int)countof(socks))
+    if (id < 0 || (size_t)id >= MAX_SOCKS)
     {
-        /* out of range */
         return NULL;
     }
     return &socks[id];
@@ -84,275 +69,99 @@ sock_get(int id)
 
 int sock_open(int domain, int type, int protocol)
 {
-    struct sock *s;
+    if (domain != AF_INET || (type != SOCK_STREAM && type != SOCK_DGRAM) || protocol != 0)
+    {
+        return -1;
+    }
 
-    if (domain != AF_INET)
-    {
-        return -1;
-    }
-    if (type != SOCK_STREAM && type != SOCK_DGRAM)
-    {
-        return -1;
-    }
-    if (protocol != 0)
-    {
-        return -1;
-    }
-    s = sock_alloc();
+    struct sock *s = sock_alloc();
     if (!s)
     {
         return -1;
     }
+
     s->family = domain;
     s->type = type;
+
     switch (s->type)
     {
-    // case SOCK_STREAM:
-    //     s->desc = tcp_open();
-    //     break;
     case SOCK_DGRAM:
         s->desc = udp_open();
         break;
     }
+
     if (s->desc == -1)
     {
         return -1;
     }
-    return indexof(socks, s);
+
+    return (int)(s - socks);
 }
 
 int sock_close(int id)
 {
-    struct sock *s;
-
-    s = sock_get(id);
+    struct sock *s = sock_get(id);
     if (!s)
     {
         return -1;
     }
+
     switch (s->type)
     {
-    // case SOCK_STREAM:
-    //     tcp_close(s->desc);
-    //     break;
     case SOCK_DGRAM:
         udp_close(s->desc);
         break;
     default:
         return -1;
     }
+
     return sock_free(s);
 }
 
-ssize_t
-sock_recvfrom(int id, void *buf, size_t n, struct sockaddr *addr, int *addrlen)
+ssize_t sock_recvfrom(int id, void *buf, size_t n, struct sockaddr *addr, int *addrlen)
 {
-    struct sock *s;
-    struct IP_ENDPOINT ep;
-    int ret;
+    struct sock *s = sock_get(id);
+    if (!s || s->type != SOCK_DGRAM || s->family != AF_INET)
+    {
+        return -1;
+    }
 
-    s = sock_get(id);
-    if (!s)
+    struct IP_ENDPOINT ep;
+    int ret = udp_recvfrom(s->desc, (uint8_t *)buf, n, &ep);
+    if (ret != -1)
     {
-        return -1;
+        ((struct sockaddr_in *)addr)->sin_addr = ep.address;
+        ((struct sockaddr_in *)addr)->sin_port = ep.port;
     }
-    if (s->type != SOCK_DGRAM)
-    {
-        return -1;
-    }
-    switch (s->family)
-    {
-    case AF_INET:
-        ret = udp_recvfrom(s->desc, (uint8_t *)buf, n, &ep);
-        if (ret != -1)
-        {
-            ((struct sockaddr_in *)addr)->sin_addr = ep.address;
-            ((struct sockaddr_in *)addr)->sin_port = ep.port;
-        }
-        return ret;
-    }
-    return -1;
+    return ret;
 }
 
-ssize_t
-sock_sendto(int id, const void *buf, size_t n, const struct sockaddr *addr, int addrlen)
+ssize_t sock_sendto(int id, const void *buf, size_t n, const struct sockaddr *addr, int addrlen)
 {
-    struct sock *s;
-    struct IP_ENDPOINT ep;
+    struct sock *s = sock_get(id);
+    if (!s || s->type != SOCK_DGRAM || s->family != AF_INET)
+    {
+        return -1;
+    }
 
-    s = sock_get(id);
-    if (!s)
-    {
-        return -1;
-    }
-    if (s->type != SOCK_DGRAM)
-    {
-        return -1;
-    }
-    switch (s->family)
-    {
-    case AF_INET:
-        ep.address = ((struct sockaddr_in *)addr)->sin_addr;
-        ep.port = ((struct sockaddr_in *)addr)->sin_port;
-        return udp_sendto(s->desc, (uint8_t *)buf, n, &ep);
-    }
-    return -1;
+    struct IP_ENDPOINT ep = {
+        .address = ((struct sockaddr_in *)addr)->sin_addr,
+        .port = ((struct sockaddr_in *)addr)->sin_port
+    };
+    return udp_sendto(s->desc, (uint8_t *)buf, n, &ep);
 }
 
 int sock_bind(int id, const struct sockaddr *addr, int addrlen)
 {
-    struct sock *s;
-    struct IP_ENDPOINT ep;
+    struct sock *s = sock_get(id);
+    if (!s || s->type != SOCK_DGRAM || s->family != AF_INET)
+    {
+        return -1;
+    }
 
-    s = sock_get(id);
-    if (!s)
-    {
-        return -1;
-    }
-    switch (s->type)
-    {
-    // case SOCK_STREAM:
-    //     switch (s->family)
-    //     {
-    //     case AF_INET:
-    //         ep.address = ((struct sockaddr_in *)addr)->sin_addr;
-    //         ep.port = ((struct sockaddr_in *)addr)->sin_port;
-    //         return tcp_bind(s->desc, &ep);
-    //     }
-    //     return -1;
-    case SOCK_DGRAM:
-        switch (s->family)
-        {
-        case AF_INET:
-            ep.address = ((struct sockaddr_in *)addr)->sin_addr;
-            ep.port = ((struct sockaddr_in *)addr)->sin_port;
-            return udp_bind(s->desc, &ep);
-        }
-        return -1;
-    }
-    return -1;
-}
-
-int sock_listen(int id, int backlog)
-{
-    struct sock *s;
-
-    s = sock_get(id);
-    if (!s)
-    {
-        return -1;
-    }
-    if (s->type != SOCK_STREAM)
-    {
-        return -1;
-    }
-    switch (s->family)
-    {
-    // case AF_INET:
-    //     return tcp_listen(s->desc, backlog);
-    }
-    return -1;
-}
-
-int sock_accept(int id, struct sockaddr *addr, int *addrlen)
-{
-    struct sock *s, *new_s;
-    struct IP_ENDPOINT ep;
-    int ret;
-
-    s = sock_get(id);
-    if (!s)
-    {
-        return -1;
-    }
-    if (s->type != SOCK_STREAM)
-    {
-        return -1;
-    }
-    switch (s->family)
-    {
-    // case AF_INET:
-    //     ret = tcp_accept(s->desc, &ep);
-    //     if (ret == -1)
-    //     {
-    //         return -1;
-    //     }
-    //     ((struct sockaddr_in *)addr)->sin_family = s->family;
-    //     ((struct sockaddr_in *)addr)->sin_addr = ep.address;
-    //     ((struct sockaddr_in *)addr)->sin_port = ep.port;
-    //     new_s = sock_alloc();
-    //     new_s->family = s->family;
-    //     new_s->type = s->type;
-    //     new_s->desc = ret;
-    //     return indexof(socks, new_s);
-    }
-    return -1;
-}
-
-int sock_connect(int id, const struct sockaddr *addr, int addrlen)
-{
-    struct sock *s;
-    struct IP_ENDPOINT ep;
-
-    s = sock_get(id);
-    if (!s)
-    {
-        return -1;
-    }
-    if (s->type != SOCK_STREAM)
-    {
-        return -1;
-    }
-    switch (s->family)
-    {
-    // case AF_INET:
-    //     ep.address = ((struct sockaddr_in *)addr)->sin_addr;
-    //     ep.port = ((struct sockaddr_in *)addr)->sin_port;
-    //     return tcp_connect(s->desc, &ep);
-    }
-    return -1;
-}
-
-ssize_t
-sock_recv(int id, void *buf, size_t n)
-{
-    struct sock *s;
-
-    s = sock_get(id);
-    if (!s)
-    {
-        return -1;
-    }
-    if (s->type != SOCK_STREAM)
-    {
-        return -1;
-    }
-    switch (s->family)
-    {
-    // case AF_INET:
-    //     return tcp_receive(s->desc, (uint8_t *)buf, n);
-    }
-    return -1;
-}
-
-ssize_t
-sock_send(int id, const void *buf, size_t n)
-{
-    struct sock *s;
-
-    s = sock_get(id);
-    if (!s)
-    {
-        return -1;
-    }
-    if (s->type != SOCK_STREAM)
-    {
-        return -1;
-    }
-    switch (s->family)
-    {
-    // case AF_INET:
-    //     return tcp_send(s->desc, (uint8_t *)buf, n);
-    }
-    return -1;
+    struct IP_ENDPOINT ep = {
+        .address = ((struct sockaddr_in *)addr)->sin_addr,
+        .port = ((struct sockaddr_in *)addr)->sin_port
+    };
+    return udp_bind(s->desc, &ep);
 }

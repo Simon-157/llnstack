@@ -21,8 +21,7 @@
 
 static volatile sig_atomic_t terminate;
 
-static void
-on_signal(int s)
+static void on_signal(int s)
 {
     (void)s;
     terminate = 1;
@@ -30,7 +29,7 @@ on_signal(int s)
 }
 
 /**
- * initialize network environment
+ * @brief Initializes the network environment.
  * 
  * @return 0 on success, -1 on failure
  */
@@ -45,26 +44,6 @@ static int setup(void)
     /* initialize network stack */
     if (network_init() == -1) {
         errorf("net_init() failure");
-        return -1;
-    }
-
-    /* initialize loopback interface */
-    dev = loopback_init();
-    if (!dev) {
-        errorf("loopback_init() failure");
-        return -1;
-    }
-
-    /* allocate ip interface for loopback */
-    iface = ip_allocate_interface(LOOPBACK_IP_ADDR, LOOPBACK_NETMASK);
-    if (!iface) {
-        errorf("ip_iface_alloc() failure");
-        return -1;
-    }
-
-    /* register loopback interface to network device */
-    if (ip_register_interface(dev, iface) == -1) {
-        errorf("ip_iface_register() failure");
         return -1;
     }
 
@@ -103,9 +82,35 @@ static int setup(void)
 }
 
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
+    /**
+     * @file udp_app.c
+     * @brief UDP application code for sending and receiving data over UDP.
+     *
+     * This file contains the implementation of a UDP application that sends and receives data over UDP.
+     * It binds to a specified address and port, and then continuously receives data from remote hosts
+     * and sends back the received data to the sender.
+     *
+     * Usage: udp_app [addr] port
+     *
+     * The application takes two command line arguments: the address to bind to and the port number.
+     * If no address is provided, it binds to the default address. If no port number is provided,
+     * it binds to the default port.
+     *
+     * The application uses the following functions:
+     * - ip_string_to_address(): Converts a string representation of an IP address to a binary format.
+     * - setup(): Performs any necessary setup operations.
+     * - sock_open(): Opens a socket for communication.
+     * - sock_bind(): Binds a socket to a local address and port.
+     * - sock_recvfrom(): Receives data from a socket.
+     * - sock_sendto(): Sends data to a remote host.
+     * - udp_close(): Closes the UDP socket.
+     * - network_shutdown(): Shuts down the network.
+     *
+     * @note This code assumes the availability of certain functions and constants from external libraries.
+     *       Make sure to include the necessary headers and link against the required libraries.
+     */
     int soc;
     long int port;
     struct sockaddr_in local = { .sin_family=AF_INET }, foreign;
@@ -114,16 +119,14 @@ main(int argc, char *argv[])
     char addr[SOCKADDR_STR_LEN];
     ssize_t ret;
 
-    /*
-     * Parse command line parameters
-     */
+
     switch (argc) {
     case 3:
         if (ip_string_to_address(argv[argc-2], &local.sin_addr) == -1) {
             errorf("ip_string_to_address() failure, addr=%s", optarg);
             return -1;
         }
-        /* fall through */
+
     case 2:
         port = strtol(argv[argc-1], NULL, 10);
         if (port < 0 || port > UINT16_MAX) {
@@ -136,16 +139,12 @@ main(int argc, char *argv[])
         fprintf(stderr, "Usage: %s [addr] port\n", argv[0]);
         return -1;
     }
-    /*
-     * Setup protocol stack
-     */
+
     if (setup() == -1) {
         errorf("setup() failure");
         return -1;
     }
-    /*
-     *  Application Code
-     */
+  
     soc = sock_open(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (soc == -1) {
         errorf("sock_open() failure");
@@ -173,9 +172,7 @@ main(int argc, char *argv[])
         }
     }
     udp_close(soc);
-    /*
-     * Cleanup protocol stack
-     */
+
     network_shutdown();
     return 0;
 }

@@ -10,8 +10,13 @@
 #include <sys/time.h>
 
 #include "handler.h"
-
 #include "util.h"
+
+#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
 
 int lprintf(FILE *fp, int level, const char *file, int line, const char *func, const char *fmt, ...)
 {
@@ -24,14 +29,39 @@ int lprintf(FILE *fp, int level, const char *file, int line, const char *func, c
     flockfile(fp);
     gettimeofday(&tv, NULL);
     strftime(timestamp, sizeof(timestamp), "%T", localtime_r(&tv.tv_sec, &tm));
-    n += fprintf(fp, "%s.%03d [%c] %s: ", timestamp, (int)(tv.tv_usec / 1000), level, func);
+    const char *level_color = NULL;
+    const char *level_desc = NULL;
+    switch (level) {
+        case 'D':
+            level_color = ANSI_COLOR_CYAN;
+            level_desc = "DEBUG";
+            break;
+        case 'I':
+            level_color = ANSI_COLOR_BLUE;
+            level_desc = "INFO";
+            break;
+        case 'W':
+            level_color = ANSI_COLOR_YELLOW;
+            level_desc = "WARNING";
+            break;
+        case 'E':
+            level_color = ANSI_COLOR_RED;
+            level_desc = "ERROR";
+            break;
+        default:
+            level_color = ANSI_COLOR_RESET;
+            level_desc = "UNKNOWN";
+            break;
+    }
+    n += fprintf(fp, "%s[%s] %s:%s ", level_color, level_desc, timestamp, ANSI_COLOR_RESET);
     va_start(ap, fmt);
     n += vfprintf(fp, fmt, ap);
     va_end(ap);
-    n += fprintf(fp, " (%s:%d)\n", file, line);
+    n += fprintf(fp, "\n");
     funlockfile(fp);
     return n;
 }
+
 
 void hexdump(FILE *fp, const void *data, size_t size)
 {
