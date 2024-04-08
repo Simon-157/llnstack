@@ -32,8 +32,7 @@ struct ether_pcap {
 
 #define PRIV(x) ((struct ether_pcap *)x->priv)
 
-static int
-ether_pcap_addr(struct network_device *dev) {
+static int ether_pcap_addr(struct network_device *dev) {
     int soc;
     struct ifreq ifr = {};
 
@@ -54,8 +53,7 @@ ether_pcap_addr(struct network_device *dev) {
     return 0;
 }
 
-static int
-ether_pcap_open(struct network_device *dev)
+static int ether_pcap_open(struct network_device *dev)
 {
     struct ether_pcap *pcap;
     struct sockaddr_ll addr = {};
@@ -121,27 +119,23 @@ ether_pcap_open(struct network_device *dev)
     return 0;
 };
 
-static int
-ether_pcap_close(struct network_device *dev)
+static int ether_pcap_close(struct network_device *dev)
 {
     close(PRIV(dev)->fd);
     return 0;
 }
 
-static ssize_t
-ether_pcap_write(struct network_device *dev, const uint8_t *frame, size_t flen)
+static ssize_t ether_pcap_write(struct network_device *dev, const uint8_t *frame, size_t flen)
 {
     return write(PRIV(dev)->fd, frame, flen);
 }
 
-int
-ether_pcap_transmit(struct network_device *dev, uint16_t type, const uint8_t *buf, size_t len, const void *dst)
+int ether_pcap_transmit(struct network_device *dev, uint16_t type, const uint8_t *buf, size_t len, const void *dst)
 {
     return ether_transmit_helper(dev, type, buf, len, dst, ether_pcap_write);
 }
 
-static ssize_t
-ether_pcap_read(struct network_device *dev, uint8_t *buf, size_t size)
+static ssize_t ether_pcap_read(struct network_device *dev, uint8_t *buf, size_t size)
 {
     ssize_t len;
 
@@ -155,8 +149,7 @@ ether_pcap_read(struct network_device *dev, uint8_t *buf, size_t size)
     return len;
 }
 
-static int
-ether_pcap_isr(unsigned int irq, void *id)
+static int ether_pcap_isr(unsigned int irq, void *id)
 {
     struct network_device *dev = (struct network_device *)id;
     struct pollfd pfd;
@@ -187,8 +180,7 @@ static struct network_device_operations ether_pcap_ops = {
     .transmit = ether_pcap_transmit,
 };
 
-struct network_device *
-ether_pcap_init(const char *name, const char *addr)
+struct network_device * ether_pcap_init(const char *name, const char *addr)
 {
     struct network_device *dev;
     struct ether_pcap *pcap;

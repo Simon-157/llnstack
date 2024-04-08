@@ -86,7 +86,7 @@ int sock_open(int domain, int type, int protocol)
     switch (s->type)
     {
     case SOCK_DGRAM:
-        s->desc = udp_open();
+        s->desc = open_new_udp_socket();
         break;
     }
 
@@ -109,7 +109,7 @@ int sock_close(int id)
     switch (s->type)
     {
     case SOCK_DGRAM:
-        udp_close(s->desc);
+        close_udp_socket(s->desc);
         break;
     default:
         return -1;
@@ -127,7 +127,7 @@ ssize_t sock_recvfrom(int id, void *buf, size_t n, struct sockaddr *addr, int *a
     }
 
     struct IP_ENDPOINT ep;
-    int ret = udp_recvfrom(s->desc, (uint8_t *)buf, n, &ep);
+    int ret = receive_udp_packet_from_socket(s->desc, (uint8_t *)buf, n, &ep);
     if (ret != -1)
     {
         ((struct sockaddr_in *)addr)->sin_addr = ep.address;
@@ -148,7 +148,7 @@ ssize_t sock_sendto(int id, const void *buf, size_t n, const struct sockaddr *ad
         .address = ((struct sockaddr_in *)addr)->sin_addr,
         .port = ((struct sockaddr_in *)addr)->sin_port
     };
-    return udp_sendto(s->desc, (uint8_t *)buf, n, &ep);
+    return send_udp_packet_over_socket(s->desc, (uint8_t *)buf, n, &ep);
 }
 
 int sock_bind(int id, const struct sockaddr *addr, int addrlen)
@@ -163,5 +163,5 @@ int sock_bind(int id, const struct sockaddr *addr, int addrlen)
         .address = ((struct sockaddr_in *)addr)->sin_addr,
         .port = ((struct sockaddr_in *)addr)->sin_port
     };
-    return udp_bind(s->desc, &ep);
+    return bind_udp_socket_to_local_endpoint(s->desc, &ep);
 }

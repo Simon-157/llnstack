@@ -12,7 +12,6 @@
 #include "arp.h"
 #include "ip2.h"
 #include "icmp.h"
-#include "udp.h"
 
 #define MAX_NAME_LENGTH 16
 
@@ -317,7 +316,7 @@ void network_shutdown(void) {
 }
 
 int network_init(void) {
-    if (intr_init() == -1 || arp_init() == -1 || ip_initialize() == -1 || icmp_init() == -1 || udp_init() == -1) {
+    if (intr_init() == -1 || arp_init() == -1 || ip_initialize() == -1 || icmp_init() == -1 || initialize_udp_subsystem() == -1) {
         errorf("network initialization failure");
         return -1;
     }

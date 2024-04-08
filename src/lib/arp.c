@@ -27,7 +27,7 @@
 #define ARP_CACHE_STATE_RESOLVED   2
 #define ARP_CACHE_STATE_STATIC     3
 
-struct arp_hdr {
+struct AddressResolutionProtocolHeader {
     uint16_t hrd;
     uint16_t pro;
     uint8_t hln;
@@ -36,7 +36,7 @@ struct arp_hdr {
 };
 
 struct arp_ether {
-    struct arp_hdr hdr;
+    struct AddressResolutionProtocolHeader hdr;
     uint8_t sha[ETHER_ADDR_LEN];
     uint8_t spa[IP_ADDRESS_LENGTH];
     uint8_t tha[ETHER_ADDR_LEN];
@@ -65,8 +65,9 @@ arp_opcode_ntoa(uint16_t opcode)
     return "Unknown";
 }
 
-static void
-arp_dump(const uint8_t *data, size_t len)
+
+// Function to display ARP message details with custom colors and table structure
+static void arp_dump(const uint8_t *data, size_t len)
 {
     struct arp_ether *message;
     IPAddress spa, tpa;
@@ -74,31 +75,30 @@ arp_dump(const uint8_t *data, size_t len)
 
     message = (struct arp_ether *)data;
     flockfile(stderr);
-    fprintf(stderr, "        hrd: 0x%04x\n", ntoh16(message->hdr.hrd));
-    fprintf(stderr, "        pro: 0x%04x\n", ntoh16(message->hdr.pro));
-    fprintf(stderr, "        hln: %u\n", message->hdr.hln);
-    fprintf(stderr, "        pln: %u\n", message->hdr.pln);
-    fprintf(stderr, "         op: 0x%04x (%s)\n", ntoh16(message->hdr.op), arp_opcode_ntoa(message->hdr.op));
-    fprintf(stderr, "        sha: %s\n", ether_addr_ntop(message->sha, addr, sizeof(addr)));
+    fprintf(stderr, "\033[1;34m================== ARP Dump ==================\033[0m\n");
+    fprintf(stderr, "\033[1;36m|   Field   |   Value   |\033[0m\n");
+    fprintf(stderr, "\033[1;34m==============================================\033[0m\n");
+    fprintf(stderr, "\033[1;36m|   Hardware Type     |   0x%04x  |\033[0m\n", ntoh16(message->hdr.hrd));
+    fprintf(stderr, "\033[1;36m|   Protocol Type      |   0x%04x  |\033[0m\n", ntoh16(message->hdr.pro));
+    fprintf(stderr, "\033[1;36m|   Hardware Address Length     |   %u       |\033[0m\n", message->hdr.hln);
+    fprintf(stderr, "\033[1;36m|   Protocol Address Length     |   %u       |\033[0m\n", message->hdr.pln);
+    fprintf(stderr, "\033[1;36m|   Operation Code      |   0x%04x  |   (\033[1;32m%s\033[0m)\033[0m\n", ntoh16(message->hdr.op), arp_opcode_ntoa(message->hdr.op));
+    fprintf(stderr, "\033[1;36m|   Sender Mac Addr     |   %s   |\033[0m\n", ether_addr_ntop(message->sha, addr, sizeof(addr)));
     memcpy(&spa, message->spa, sizeof(spa));
-    fprintf(stderr, "        spa: %s\n", ip_address_to_string(spa, addr, sizeof(addr)));
-    fprintf(stderr, "        tha: %s\n", ether_addr_ntop(message->tha, addr, sizeof(addr)));
+    fprintf(stderr, "\033[1;36m|   Sender IP Addr     |   %s   |\033[0m\n", ip_address_to_string(spa, addr, sizeof(addr)));
+    fprintf(stderr, "\033[1;36m|   Target Mac Addr     |   %s   |\033[0m\n", ether_addr_ntop(message->tha, addr, sizeof(addr)));
     memcpy(&tpa, message->tpa, sizeof(tpa));
-    fprintf(stderr, "        tpa: %s\n", ip_address_to_string(tpa, addr, sizeof(addr)));
+    fprintf(stderr, "\033[1;36m|   Target IP Addr     |   %s   |\033[0m\n", ip_address_to_string(tpa, addr, sizeof(addr)));
+    fprintf(stderr, "\033[1;34m==============================================\033[0m\n");
 #ifdef HEXDUMP
     hexdump(stderr, data, len);
 #endif
     funlockfile(stderr);
 }
 
-/*
- * ARP Cache
- *
- * NOTE: ARP Cache functions must be called after mutex locked
- */
 
-static struct arp_cache *
-arp_cache_alloc(void)
+
+static struct arp_cache * arp_cache_alloc(void)
 {
     struct arp_cache *entry, *oldest = NULL;
 
@@ -113,8 +113,7 @@ arp_cache_alloc(void)
     return oldest;
 }
 
-static struct arp_cache *
-arp_cache_select(IPAddress pa)
+static struct arp_cache * arp_cache_select(IPAddress pa)
 {
     struct arp_cache *entry;
 
@@ -126,8 +125,7 @@ arp_cache_select(IPAddress pa)
     return NULL;
 }
 
-static struct arp_cache *
-arp_cache_update(IPAddress pa, const uint8_t *ha)
+static struct arp_cache * arp_cache_update(IPAddress pa, const uint8_t *ha)
 {
     struct arp_cache *cache;
     char addr1[MAX_IP_ADDRESS_STRING_LENGTH];
@@ -145,8 +143,7 @@ arp_cache_update(IPAddress pa, const uint8_t *ha)
     return cache;
 }
 
-static struct arp_cache *
-arp_cache_insert(IPAddress pa, const uint8_t *ha)
+static struct arp_cache * arp_cache_insert(IPAddress pa, const uint8_t *ha)
 {
     struct arp_cache *cache;
     char addr1[MAX_IP_ADDRESS_STRING_LENGTH];
@@ -165,8 +162,7 @@ arp_cache_insert(IPAddress pa, const uint8_t *ha)
     return cache;
 }
 
-static void
-arp_cache_delete(struct arp_cache *cache)
+static void arp_cache_delete(struct arp_cache *cache)
 {
     char addr1[MAX_IP_ADDRESS_STRING_LENGTH];
     char addr2[ETHER_ADDR_STR_LEN];
@@ -178,8 +174,7 @@ arp_cache_delete(struct arp_cache *cache)
     timerclear(&cache->timestamp);
 }
 
-static int
-arp_request(struct network_interface *iface, IPAddress tpa)
+static int arp_request(struct network_interface *iface, IPAddress tpa)
 {
     struct arp_ether request;
 
@@ -192,13 +187,13 @@ arp_request(struct network_interface *iface, IPAddress tpa)
     memcpy(request.spa, &((struct IP_INTERFACE *)iface)->unicast, IP_ADDRESS_LENGTH);
     memset(request.tha, 0, ETHER_ADDR_LEN);
     memcpy(request.tpa, &tpa, IP_ADDRESS_LENGTH);
-    debugf("dev=%s, opcode=%s(0x%04x), len=%zu", iface->dev->name, arp_opcode_ntoa(request.hdr.op), ntoh16(request.hdr.op), sizeof(request));
+    debugf("Sending ARP request: dev=%s, opcode=%s(0x%04x), len=%zu", iface->dev->name, arp_opcode_ntoa(request.hdr.op), ntoh16(request.hdr.op), sizeof(request));
+
     arp_dump((uint8_t *)&request, sizeof(request));
     return network_device_output(iface->dev, ETHER_TYPE_ARP, (uint8_t *)&request, sizeof(request), iface->dev->broadcast);
 }
 
-static int
-arp_reply(struct network_interface *iface, const uint8_t *tha, IPAddress tpa, const uint8_t *dst)
+static int arp_reply(struct network_interface *iface, const uint8_t *tha, IPAddress tpa, const uint8_t *dst)
 {
     struct arp_ether reply;
 
@@ -211,13 +206,12 @@ arp_reply(struct network_interface *iface, const uint8_t *tha, IPAddress tpa, co
     memcpy(reply.spa, &((struct IP_INTERFACE *)iface)->unicast, IP_ADDRESS_LENGTH);
     memcpy(reply.tha, tha, ETHER_ADDR_LEN);
     memcpy(reply.tpa, &tpa, IP_ADDRESS_LENGTH);
-    debugf("dev=%s, opcode=%s(0x%04x), len=%zu", iface->dev->name, arp_opcode_ntoa(reply.hdr.op), ntoh16(reply.hdr.op), sizeof(reply));
+     debugf("Sending ARP reply: dev=%s, opcode=%s(0x%04x), len=%zu", iface->dev->name, arp_opcode_ntoa(reply.hdr.op), ntoh16(reply.hdr.op), sizeof(reply));
     arp_dump((uint8_t *)&reply, sizeof(reply));
     return network_device_output(iface->dev, ETHER_TYPE_ARP, (uint8_t *)&reply, sizeof(reply), dst);
 }
 
-static void
-arp_input(const uint8_t *data, size_t len, struct network_device *dev)
+static void arp_input(const uint8_t *data, size_t len, struct network_device *dev)
 {
     struct arp_ether *msg;
     IPAddress spa, tpa;
@@ -225,19 +219,22 @@ arp_input(const uint8_t *data, size_t len, struct network_device *dev)
     struct network_interface *iface;
 
     if (len < sizeof(*msg)) {
-        errorf("too short");
+                errorf("Received ARP packet is too short");
+
         return;
     }
     msg = (struct arp_ether *)data;
     if (ntoh16(msg->hdr.hrd) != ARP_HRD_ETHER || msg->hdr.hln != ETHER_ADDR_LEN) {
-        errorf("unsupported hardware address");
+                errorf("Unsupported hardware address type");
+
         return;
     }
     if (ntoh16(msg->hdr.pro) != ARP_PRO_IP || msg->hdr.pln != IP_ADDRESS_LENGTH) {
-        errorf("unsupported protocol address");
+                errorf("Unsupported protocol address type");
         return;
     }
-    debugf("dev=%s, opcode=%s(0x%04x), len=%zu", dev->name, arp_opcode_ntoa(msg->hdr.op), ntoh16(msg->hdr.op), len);
+        debugf("Received ARP packet: dev=%s, opcode=%s(0x%04x), len=%zu", dev->name, arp_opcode_ntoa(msg->hdr.op), ntoh16(msg->hdr.op), len);
+
     arp_dump(data, len);
     memcpy(&spa, msg->spa, sizeof(spa));
     memcpy(&tpa, msg->tpa, sizeof(tpa));
@@ -279,8 +276,10 @@ int arp_resolve(struct network_interface *iface, IPAddress pa, uint8_t *ha)
     if (!cache) {
         cache = arp_cache_alloc();
         if (!cache) {
+
             mutex_unlock(&mutex);
-            errorf("arp_cache_alloc() failure");
+            errorf("Failed to allocate ARP cache");
+
             return ARP_RESOLVE_ERROR;
         }
         cache->state = ARP_CACHE_STATE_INCOMPLETE;
@@ -288,7 +287,8 @@ int arp_resolve(struct network_interface *iface, IPAddress pa, uint8_t *ha)
         gettimeofday(&cache->timestamp, NULL);
         arp_request(iface, pa);
         mutex_unlock(&mutex);
-        debugf("cache not found, pa=%s", ip_address_to_string(pa, addr1, sizeof(addr1)));
+        debugf("ARP cache not found, protocol_addr=%s", ip_address_to_string(pa, addr1, sizeof(addr1)));
+
         return ARP_RESOLVE_INCOMPLETE;
     }
     if (cache->state == ARP_CACHE_STATE_INCOMPLETE) {
@@ -298,13 +298,13 @@ int arp_resolve(struct network_interface *iface, IPAddress pa, uint8_t *ha)
     }
     memcpy(ha, cache->ha, ETHER_ADDR_LEN);
     mutex_unlock(&mutex);
-    debugf("resolved, pa=%s, ha=%s",
+    debugf("ARP resolved: protocol_addr=%s, hardware_addr=%s",
         ip_address_to_string(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
+
     return ARP_RESOLVE_FOUND;
 }
 
-static void
-arp_timer(void)
+static void arp_timer(void)
 {
     struct arp_cache *entry;
     struct timeval now, diff;
@@ -322,17 +322,16 @@ arp_timer(void)
     mutex_unlock(&mutex);
 }
 
-int
-arp_init(void)
+int arp_init(void)
 {
     struct timeval interval = {1, 0};
 
     if (network_protocol_register("ARP", NETWORK_PROTOCOL_TYPE_ARP, arp_input) == -1) {
-        errorf("net_protocol_register() failure");
+        errorf("network protocol register failure");
         return -1;
     }
     if (network_timer_register("ARP Timer", interval, arp_timer) == -1) {
-        errorf("net_timer_register() failure");
+        errorf("network timer register failure");
         return -1;
     }
     return 0;

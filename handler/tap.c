@@ -33,8 +33,7 @@ struct ether_tap {
 
 #define PRIV(x) ((struct ether_tap *)x->priv)
 
-static int
-ether_tap_addr(struct network_device *dev) {
+static int ether_tap_addr(struct network_device *dev) {
     int soc;
     struct ifreq ifr = {};
 
@@ -55,8 +54,7 @@ ether_tap_addr(struct network_device *dev) {
     return 0;
 }
 
-static int
-ether_tap_open(struct network_device *dev)
+static int ether_tap_open(struct network_device *dev)
 {
     struct ether_tap *tap;
     struct ifreq ifr = {};
@@ -94,7 +92,7 @@ ether_tap_open(struct network_device *dev)
     }
     if (memcmp(dev->address, ETHER_ADDR_ANY, ETHER_ADDR_LEN) == 0) {
         if (ether_tap_addr(dev) == -1) {
-            errorf("ether_tap_addr() failure, dev=%s", dev->name);
+            errorf("ether tap address failure, dev=%s", dev->name);
             close(tap->fd);
             return -1;
         }
@@ -102,27 +100,23 @@ ether_tap_open(struct network_device *dev)
     return 0;
 };
 
-static int
-ether_tap_close(struct network_device *dev)
+static int ether_tap_close(struct network_device *dev)
 {
     close(PRIV(dev)->fd);
     return 0;
 }
 
-static ssize_t
-ether_tap_write(struct network_device *dev, const uint8_t *frame, size_t flen)
+static ssize_t ether_tap_write(struct network_device *dev, const uint8_t *frame, size_t flen)
 {
     return write(PRIV(dev)->fd, frame, flen);
 }
 
-int
-ether_tap_transmit(struct network_device *dev, uint16_t type, const uint8_t *buf, size_t len, const void *dst)
+int ether_tap_transmit(struct network_device *dev, uint16_t type, const uint8_t *buf, size_t len, const void *dst)
 {
     return ether_transmit_helper(dev, type, buf, len, dst, ether_tap_write);
 }
 
-static ssize_t
-ether_tap_read(struct network_device *dev, uint8_t *buf, size_t size)
+static ssize_t ether_tap_read(struct network_device *dev, uint8_t *buf, size_t size)
 {
     ssize_t len;
 
@@ -136,8 +130,7 @@ ether_tap_read(struct network_device *dev, uint8_t *buf, size_t size)
     return len;
 }
 
-static int
-ether_tap_isr(unsigned int irq, void *id)
+static int ether_tap_isr(unsigned int irq, void *id)
 {
     struct network_device *dev = (struct network_device *)id;
     struct pollfd pfd;
@@ -168,15 +161,14 @@ static struct network_device_operations ether_tap_ops = {
     .transmit = ether_tap_transmit,
 };
 
-struct network_device *
-ether_tap_init(const char *name, const char *addr)
+struct network_device *ether_tap_init(const char *name, const char *addr)
 {
     struct network_device *dev;
     struct ether_tap *tap;
 
     dev = network_device_allocate(ether_setup_helper);
     if (!dev) {
-        errorf("net_device_alloc() failure");
+        errorf("network allocation failure");
         return NULL;
     }
     if (addr) {
@@ -188,7 +180,7 @@ ether_tap_init(const char *name, const char *addr)
     dev->ops = &ether_tap_ops;
     tap = memory_alloc(sizeof(*tap));
     if (!tap) {
-        errorf("memory_alloc() failure");
+        errorf("memory allocation failure");
         return NULL;
     }
     strncpy(tap->name, name, sizeof(tap->name)-1);

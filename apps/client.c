@@ -1,56 +1,40 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-// #include <arpa/inet.h>
+#include <arpa/inet.h>
 
-#include "sock.h"
+#define SERVER_IP "192.0.2.2"
+#define PORT 4000
+#define BUFFER_SIZE 1024
 
-#define SERVER_IP "127.0.0.1"
-#define SERVER_PORT 4000
+int main() {
+    struct sockaddr_in server_addr;
+    char buffer[BUFFER_SIZE] = {0};
 
-int main(int argc, char *argv[]) {
-  int soc, ret;
-  struct sockaddr_in addr = { .sin_family = AF_INET };
-  uint8_t buf[1024] = "Hello from client";
-  socklen_t addrlen = sizeof(addr);
+    // Create client socket
+    int client_fd;
+    if ((client_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("socket creation failed");
+        exit(EXIT_FAILURE);
+    }
 
-  // Convert server IP address to binary form
-  if (inet_pton(AF_INET, SERVER_IP, &addr.sin_addr) == -1) {
-    perror("inet_pton");
-    exit(1);
-  }
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
 
-  // Set server port
-  addr.sin_port = htons(SERVER_PORT);
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
+        perror("Invalid address/ Address not supported");
+        exit(EXIT_FAILURE);
+    }
 
-  // Open a UDP socket
-  soc = sock_open(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (soc == -1) {
-    perror("sock_open");
-    exit(1);
-  }
+    while (1) {
+        printf("Enter message: ");
+        fgets(buffer, BUFFER_SIZE, stdin);
 
-  // Send data to the server
-  ret = sendto(soc, buf, strlen((char *)buf), 0, (struct sockaddr *)&addr, addrlen);
-  if (ret == -1) {
-    perror("sendto");
-    close(soc);
-    exit(1);
-  }
+        // Send message to server
+        sendto(client_fd, buffer, strlen(buffer), 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    }
 
-  printf("Sent %d bytes to %s:%d\n", ret, SERVER_IP, SERVER_PORT);
-
-  // Receive data from the server (optional)
-  ret = recvfrom(soc, buf, sizeof(buf), 0, (struct sockaddr *)&addr, &addrlen);
-  if (ret != -1) {
-    printf("Received %d bytes from server\n", ret);
-    printf("%s\n", buf);
-  } else {
-    perror("recvfrom");
-  }
-
-  close(soc);
-  return 0;
-}
+    return 0;
+} 

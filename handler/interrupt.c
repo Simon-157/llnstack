@@ -11,7 +11,6 @@
 
 #include "util.h"
 #include "net2.h"
-// #include <linux/time.h>
 #include <asm-generic/signal-defs.h>
 
 struct irq_entry {
@@ -26,8 +25,7 @@ struct irq_entry {
 sigset_t sigmask;
 struct irq_entry *irq_vec;
 
-int
-intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *dev), int flags, const char *name, void *dev)
+int intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *dev), int flags, const char *name, void *dev)
 {
     debugf("irq=%u, handler=%p, flags=%d, name=%s, dev=%p", irq, handler, flags, name, dev);
     struct irq_entry *entry;
@@ -41,7 +39,7 @@ intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *dev), 
     }
     entry = memory_alloc(sizeof(*entry));
     if (!entry) {
-        errorf("memory_alloc() failure");
+        errorf("memory allocation failure");
         return -1;
     }
     entry->irq = irq;
@@ -56,8 +54,7 @@ intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *dev), 
     return 0;
 }
 
-static int
-intr_timer_setup(struct itimerspec *interval)
+static int intr_timer_setup(struct itimerspec *interval)
 {
     timer_t id;
 
@@ -72,8 +69,7 @@ intr_timer_setup(struct itimerspec *interval)
     return 0;
 }
 
-static void *
-intr_thread(void *arg)
+static void * intr_thread(void *arg)
 {
     struct timespec ts = {0, 1000000}; // 1ms
     struct itimerspec interval = {ts, ts};
@@ -114,8 +110,7 @@ intr_thread(void *arg)
 
 pthread_t tid;
 
-int
-intr_run(void)
+int intr_run(void)
 {
     int err;
 
@@ -132,8 +127,7 @@ intr_run(void)
     return 0;
 }
 
-int
-intr_init(void)
+int intr_init(void)
 {
     sigemptyset(&sigmask);
     sigaddset(&sigmask, SIGUSR1);

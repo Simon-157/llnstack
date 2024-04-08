@@ -17,8 +17,7 @@ struct ether_hdr {
 const uint8_t ETHER_ADDR_ANY[ETHER_ADDR_LEN] = {"\x00\x00\x00\x00\x00\x00"};
 const uint8_t ETHER_ADDR_BROADCAST[ETHER_ADDR_LEN] = {"\xff\xff\xff\xff\xff\xff"};
 
-int
-ether_addr_pton(const char *p, uint8_t *n)
+int ether_addr_pton(const char *p, uint8_t *n)
 {
     int index;
     char *ep;
@@ -41,8 +40,7 @@ ether_addr_pton(const char *p, uint8_t *n)
     return  0;
 }
 
-static const char *
-ether_type_ntoa(uint16_t type)
+static const char *ether_type_ntoa(uint16_t type)
 {
     switch (ntoh16(type)) {
     case ETHER_TYPE_IP:
@@ -55,8 +53,7 @@ ether_type_ntoa(uint16_t type)
     return "UNKNOWN";
 }
 
-char *
-ether_addr_ntop(const uint8_t *n, char *p, size_t size)
+char *ether_addr_ntop(const uint8_t *n, char *p, size_t size)
 {
     if (!n || !p) {
         return NULL;
@@ -65,8 +62,7 @@ ether_addr_ntop(const uint8_t *n, char *p, size_t size)
     return p;
 }
 
-static void
-ether_dump(const uint8_t *frame, size_t flen)
+static void ether_dump(const uint8_t *frame, size_t flen)
 {
     struct ether_hdr *hdr;
     char addr[ETHER_ADDR_STR_LEN];
@@ -102,8 +98,7 @@ int ether_transmit_helper(struct network_device *dev, uint16_t type, const uint8
     return callback(dev, frame, flen) == (ssize_t)flen ? 0 : -1;
 }
 
-int
-ether_poll_helper(struct network_device *dev, ssize_t (*callback)(struct network_device *dev, uint8_t *buf, size_t size))
+int ether_poll_helper(struct network_device *dev, ssize_t (*callback)(struct network_device *dev, uint8_t *buf, size_t size))
 {
     uint8_t frame[ETHER_FRAME_SIZE_MAX];
     ssize_t flen;
@@ -128,8 +123,7 @@ ether_poll_helper(struct network_device *dev, ssize_t (*callback)(struct network
     return network_input_handler(type, (uint8_t *)(hdr + 1), flen - sizeof(*hdr), dev);
 }
 
-void
-ether_setup_helper(struct network_device *dev)
+void ether_setup_helper(struct network_device *dev)
 {
     dev->type = NETWORK_DEVICE_TYPE_ETHERNET;
     dev->mtu = ETHER_PAYLOAD_SIZE_MAX;

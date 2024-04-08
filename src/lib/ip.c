@@ -173,11 +173,11 @@ static struct ip_route *ip_route_lookup(IPAddress dst) {
 int ip_set_default_gateway(struct IP_INTERFACE *iface, const char *gateway) {
     IPAddress gw;
     if (ip_string_to_address(gateway, &gw) == -1) {
-        errorf("ip_string_to_address() failure, addr=%s", gateway);
+        errorf("ip string to address failure, addr=%s", gateway);
         return -1;
     }
     if (!ip_route_add(IP_ADDR_ANY, IP_ADDR_ANY, gw, iface)) {
-        errorf("ip_route_add() failure");
+        errorf("ip route add failed");
         return -1;
     }
     return 0;
@@ -193,17 +193,17 @@ struct IP_INTERFACE *ip_allocate_interface(const char *unicast, const char *netm
     struct IP_INTERFACE *iface;
     iface = memory_alloc(sizeof(*iface));
     if (!iface) {
-        errorf("memory_alloc() failure");
+        errorf("allocation of memory failed ");
         return NULL;
     }
     NETWORK_INTERFACE(iface)->family = NETWORK_INTERFACE_FAMILY_IP;
     if (ip_string_to_address(unicast, &iface->unicast) == -1) {
-        errorf("ip_string_to_address() failure, addr=%s", unicast);
+        errorf("converting ip address to string failed, addr=%s", unicast);
         memory_free(iface);
         return NULL;
     }
     if (ip_string_to_address(netmask, &iface->netmask) == -1) {
-        errorf("ip_string_to_address() failure, addr=%s", netmask);
+        errorf("converting ip address to string() failure, addr=%s", netmask);
         memory_free(iface);
         return NULL;
     }
@@ -343,7 +343,7 @@ ssize_t ip_send_packet(uint8_t protocol, const uint8_t *data, size_t len, IPAddr
     }
     id = ip_generate_id();
     if (ip_output_core(iface, protocol, data, len, iface->unicast, dst, nexthop, id, 0) == -1) {
-        errorf("ip_output_core() failure");
+        errorf("ip output failed");
         return -1;
     }
     return len;

@@ -80,7 +80,6 @@ static void icmp_dump(const uint8_t *data, size_t len) {
             break;
     }
 
-    // Optional: Print hexadecimal dump
 #ifdef HEXDUMP
     hexdump(stderr, data, len);
 #endif
@@ -150,7 +149,7 @@ int icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data
 int icmp_init(void)
 {
     if (ip_register_protocol("ICMP", ICMP_PROTOCOL, icmp_input) == -1) {
-        errorf("ip_protocol_register() failure");
+        errorf("ip protocol register failure");
         return -1;
     }
     return 0;

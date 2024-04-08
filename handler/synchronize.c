@@ -4,8 +4,7 @@
 
 #include "handler.h"
 
-int
-sched_ctx_init(struct sched_ctx *ctx)
+int sched_ctx_init(struct sched_ctx *ctx)
 {
     pthread_cond_init(&ctx->cond, NULL);
     ctx->interrupted = 0;
@@ -13,14 +12,12 @@ sched_ctx_init(struct sched_ctx *ctx)
     return 0;
 }
 
-int
-sched_ctx_destroy(struct sched_ctx *ctx)
+int sched_ctx_destroy(struct sched_ctx *ctx)
 {
     return pthread_cond_destroy(&ctx->cond);
 }
 
-int
-sched_sleep(struct sched_ctx *ctx, mutex_t *mutex, const struct timespec *abstime)
+int sched_sleep(struct sched_ctx *ctx, mutex_t *mutex, const struct timespec *abstime)
 {
     int ret;
 
@@ -45,14 +42,12 @@ sched_sleep(struct sched_ctx *ctx, mutex_t *mutex, const struct timespec *abstim
     return ret;
 }
 
-int
-sched_wakeup(struct sched_ctx *ctx)
+int sched_wakeup(struct sched_ctx *ctx)
 {
     return pthread_cond_broadcast(&ctx->cond);
 }
 
-int
-sched_interrupt(struct sched_ctx *ctx)
+int sched_interrupt(struct sched_ctx *ctx)
 {
     ctx->interrupted = 1;
     return pthread_cond_broadcast(&ctx->cond);

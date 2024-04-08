@@ -17,85 +17,82 @@
 #include "ip2.h"
 
 /**
- * @brief Output a UDP packet over the network
+ * @brief Sends a UDP packet to a network destination.
  *
- * This function sends a UDP packet to the destination specified by the given
- * endpoints.
+ * This function sends a UDP packet from a source IP endpoint to a destination IP endpoint.
  *
- * @param src Source IP endpoint
- * @param dst Destination IP endpoint
- * @param buf Pointer to UDP payload
- * @param len Length of UDP payload
- * @return Number of bytes sent on success, negative on failure
+ * @param src The source IP endpoint.
+ * @param dst The destination IP endpoint.
+ * @param buf The buffer containing the data to be sent.
+ * @param len The length of the data in the buffer.
+ * @return The number of bytes sent on success, or -1 on failure.
  */
-extern ssize_t udp_output(struct IP_ENDPOINT *src, struct IP_ENDPOINT *dst,
-                          const uint8_t *buf, size_t len);
+extern ssize_t send_udp_packet_to_network(struct IP_ENDPOINT *src, struct IP_ENDPOINT *dst,
+                                          const uint8_t *buf, size_t len);
 
 /**
- * @brief Initialize UDP subsystem
+ * @brief Initializes the UDP subsystem.
  *
- * This function initializes the UDP subsystem. It must be called before
- * any other UDP functions.
+ * This function initializes the UDP subsystem and prepares it for use.
  *
- * @return 0 on success, negative on failure
+ * @return 0 on success, or a negative value on failure.
  */
-extern int udp_init(void);
+extern int initialize_udp_subsystem(void);
 
 /**
- * @brief Open a UDP socket
+ * @brief Opens a new UDP socket.
  *
- * This function opens a new UDP socket.
+ * This function opens a new UDP socket and returns its identifier.
  *
- * @return Socket descriptor on success, negative on failure
+ * @return The identifier of the newly opened UDP socket, or a negative value on failure.
  */
-extern int udp_open(void);
+extern int open_new_udp_socket(void);
 
 /**
- * @brief Bind a UDP socket to a local IP endpoint
+ * @brief Binds a UDP socket to a local IP endpoint.
  *
- * This function binds a UDP socket to a local IP endpoint.
+ * This function binds a UDP socket to a specific local IP endpoint.
  *
- * @param index Socket descriptor
- * @param local Local IP endpoint
- * @return 0 on success, negative on failure
+ * @param index The index of the UDP socket.
+ * @param local The local IP endpoint to bind to.
+ * @return 0 on success, or a negative value on failure.
  */
-extern int udp_bind(int index, struct IP_ENDPOINT *local);
+extern int bind_udp_socket_to_local_endpoint(int index, struct IP_ENDPOINT *local);
 
 /**
- * @brief Send a UDP packet over a socket
+ * @brief Sends a UDP packet over a socket.
  *
- * This function sends a UDP packet to the destination specified by the given
- * foreign endpoint.
+ * This function sends a UDP packet over a specific UDP socket to a foreign IP endpoint.
  *
- * @param id Socket descriptor
- * @param buf Pointer to UDP payload
- * @param len Length of UDP payload
- * @param foreign Destination IP endpoint
- * @return Number of bytes sent on success, negative on failure
+ * @param id The identifier of the UDP socket.
+ * @param buf The buffer containing the data to be sent.
+ * @param len The length of the data in the buffer.
+ * @param foreign The foreign IP endpoint to send the packet to.
+ * @return The number of bytes sent on success, or -1 on failure.
  */
-extern ssize_t udp_sendto(int id, uint8_t *buf, size_t len, struct IP_ENDPOINT *foreign);
+extern ssize_t send_udp_packet_over_socket(int id, uint8_t *buf, size_t len, struct IP_ENDPOINT *foreign);
 
 /**
- * @brief Receive a UDP packet from a socket
+ * @brief Receives a UDP packet from a socket.
  *
- * This function receives a UDP packet from the given socket.
+ * This function receives a UDP packet from a specific UDP socket and stores it in a buffer.
  *
- * @param id Socket descriptor
- * @param buf Buffer to store received data
- * @param size Size of buffer
- * @param foreign Pointer to store source IP endpoint
- * @return Number of bytes received on success, negative on failure
+ * @param id The identifier of the UDP socket.
+ * @param buf The buffer to store the received data.
+ * @param size The size of the buffer.
+ * @param foreign The foreign IP endpoint from which the packet was received.
+ * @return The number of bytes received on success, or -1 on failure.
  */
-extern ssize_t udp_recvfrom(int id, uint8_t *buf, size_t size, struct IP_ENDPOINT *foreign);
+extern ssize_t receive_udp_packet_from_socket(int id, uint8_t *buf, size_t size, struct IP_ENDPOINT *foreign);
 
 /**
- * @brief Close a UDP socket
+ * @brief Closes a UDP socket.
  *
- * This function closes a UDP socket.
+ * This function closes a UDP socket with the specified identifier.
  *
- * @param id Socket descriptor
- * @return 0 on success, negative on failure
+ * @param id The identifier of the UDP socket to close.
+ * @return 0 on success, or a negative value on failure.
  */
-extern int udp_close(int id);
+extern int close_udp_socket(int id);
 
-#endif
+#endif // UDP_H
