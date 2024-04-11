@@ -46,6 +46,7 @@ static char * icmp_type_ntoa(uint8_t type) {
     }
     return "Unknown";
 }
+
 static void icmp_dump(const uint8_t *data, size_t len) {
     struct icmp_header *hdr;
     struct icmp_echo *echo;
@@ -53,30 +54,39 @@ static void icmp_dump(const uint8_t *data, size_t len) {
     flockfile(stderr);
     hdr = (struct icmp_header *)data;
 
+    fprintf(stderr, "**********************************************\n");
+    fprintf(stderr, "*        Starting New ICMP Packet Analysis     *\n");
+    fprintf(stderr, "**********************************************\n");
+
+
+    // Initialize a string buffer to hold the formatted output
+    char output_buffer[1024];
+    int offset = 0; // Keep track of the current position in the buffer
+
     // Print type with color
     const char* type_color = hdr->type == ICMP_TYPE_ECHO ? ANSI_COLOR_YELLOW : ANSI_COLOR_GREEN;
-    fprintf(stderr, ANSI_COLOR_BOLD "       Type: " ANSI_COLOR_RESET "%s%s (%u)\n", type_color, icmp_type_ntoa(hdr->type), hdr->type);
+    offset += snprintf(output_buffer + offset, sizeof(output_buffer) - offset, ANSI_COLOR_BOLD "Type: " ANSI_COLOR_RESET "%s%-15s (%u)    ", type_color, icmp_type_ntoa(hdr->type), hdr->type);
 
     // Print code
-    fprintf(stderr, ANSI_COLOR_BOLD "       Code: " ANSI_COLOR_RESET "%u\n", hdr->code);
+    offset += snprintf(output_buffer + offset, sizeof(output_buffer) - offset, ANSI_COLOR_BOLD "Code: " ANSI_COLOR_RESET "%-15u    ", hdr->code);
 
     // Print checksum and calculated checksum
     uint16_t checksum = ntoh16(hdr->sum);
     uint16_t calculated_checksum = ntoh16(cksum16((uint16_t *)data, len, -hdr->sum));
     const char* checksum_color = checksum == calculated_checksum ? ANSI_COLOR_GREEN : ANSI_COLOR_RED;
-    fprintf(stderr, ANSI_COLOR_BOLD "        Sum: " ANSI_COLOR_RESET "0x%04x (%s0x%04x%s)\n", checksum, checksum_color, calculated_checksum, ANSI_COLOR_RESET);
+    offset += snprintf(output_buffer + offset, sizeof(output_buffer) - offset, ANSI_COLOR_BOLD "Sum: " ANSI_COLOR_RESET "0x%04x (%s0x%04x%s)    ", checksum, checksum_color, calculated_checksum, ANSI_COLOR_RESET);
 
     // Print ID and sequence if applicable
     switch (hdr->type) {
         case ICMP_TYPE_ECHOREPLY:
         case ICMP_TYPE_ECHO:
             echo = (struct icmp_echo *)hdr;
-            fprintf(stderr, ANSI_COLOR_BOLD "         ID: " ANSI_COLOR_RESET "%u\n", ntoh16(echo->id));
-            fprintf(stderr, ANSI_COLOR_BOLD "        Seq: " ANSI_COLOR_RESET "%u\n", ntoh16(echo->seq));
+            offset += snprintf(output_buffer + offset, sizeof(output_buffer) - offset, ANSI_COLOR_BOLD "ID: " ANSI_COLOR_RESET "%-15u    ", ntoh16(echo->id));
+            offset += snprintf(output_buffer + offset, sizeof(output_buffer) - offset, ANSI_COLOR_BOLD "Seq: " ANSI_COLOR_RESET "%u\n", ntoh16(echo->seq));
             break;
         default:
             // Print values for other types
-            fprintf(stderr, ANSI_COLOR_BOLD "     Values: " ANSI_COLOR_RESET "0x%08x\n", ntoh32(hdr->values));
+            offset += snprintf(output_buffer + offset, sizeof(output_buffer) - offset, ANSI_COLOR_BOLD "Values: " ANSI_COLOR_RESET "0x%08x\n", ntoh32(hdr->values));
             break;
     }
 
@@ -84,8 +94,10 @@ static void icmp_dump(const uint8_t *data, size_t len) {
     hexdump(stderr, data, len);
 #endif
 
+    fprintf(stderr, "%s", output_buffer);
     funlockfile(stderr);
 }
+
 
 static void icmp_input(const uint8_t *data, size_t len, IPAddress src, IPAddress dst, struct IP_INTERFACE *iface)
 {

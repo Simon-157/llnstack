@@ -107,26 +107,37 @@ void ip_dump(const uint8_t *data, size_t len) {
     uint16_t total, offset;
     char addr[MAX_IP_ADDRESS_STRING_LENGTH];
 
+    /* Lock the standard error stream for thread safety */
     flockfile(stderr);
+
+    /* Extract IP header information */
     hdr = (struct ip_hdr *)data;
     v = (hdr->vhl & 0xf0) >> 4;
     hl = hdr->vhl & 0x0f;
     hlen = hl << 2;
-    fprintf(stderr, "vhl: 0x%02x [v: %u, hl: %u (%u)]\n", hdr->vhl, v, hl, hlen);
-    fprintf(stderr, "tos: 0x%02x\n", hdr->tos);
+
+    /* Print IP header fields */
+    fprintf(stderr, "\x1b[33mVersion and Header Length (vhl):\x1b[0m 0x%02x [\x1b[32mVersion:\x1b[0m %u, \x1b[32mHeader Length:\x1b[0m %u (%u bytes)]\n",
+            hdr->vhl, v, hl, hlen);
+    fprintf(stderr, "\x1b[33mType of Service (tos):\x1b[0m 0x%02x\n", hdr->tos);
     total = ntoh16(hdr->total);
-    fprintf(stderr, "total: %u (payload: %u)\n", total, total - hlen);
-    fprintf(stderr, "id: %u\n", ntoh16(hdr->id));
+    fprintf(stderr, "\x1b[33mTotal Length:\x1b[0m %u bytes (\x1b[32mPayload Length:\x1b[0m %u bytes)\n", total, total - hlen);
+    fprintf(stderr, "\x1b[33mIdentification (id):\x1b[0m %u\n", ntoh16(hdr->id));
     offset = ntoh16(hdr->offset);
-    fprintf(stderr, "offset: 0x%04x [flags=%x, offset=%u]\n", offset, (offset & 0xe000) >> 13, offset & 0x1fff);
-    fprintf(stderr, "ttl: %u\n", hdr->ttl);
-    fprintf(stderr, "protocol: %u (%s)\n", hdr->protocol, ip_get_protocol_name(hdr->protocol));
-    fprintf(stderr, "sum: 0x%04x (0x%04x)\n", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)data, hlen, -hdr->sum)));
-    fprintf(stderr, "src: %s\n", ip_address_to_string(hdr->src, addr, sizeof(addr)));
-    fprintf(stderr, "dst: %s\n", ip_address_to_string(hdr->dst, addr, sizeof(addr)));
+    fprintf(stderr, "\x1b[33mFragment Offset:\x1b[0m 0x%04x [\x1b[32mFlags:\x1b[0m %x, \x1b[32mOffset:\x1b[0m %u]\n", offset, (offset & 0xe000) >> 13, offset & 0x1fff);
+    fprintf(stderr, "\x1b[33mTime to Live (ttl):\x1b[0m %u\n", hdr->ttl);
+    fprintf(stderr, "\x1b[33mProtocol:\x1b[0m %u (\x1b[32m%s\x1b[0m)\n", hdr->protocol, ip_get_protocol_name(hdr->protocol));
+    fprintf(stderr, "\x1b[33mHeader Checksum:\x1b[0m 0x%04x (\x1b[32mCalculated Checksum:\x1b[0m 0x%04x)\n",
+            ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)data, hlen, -hdr->sum)));
+    fprintf(stderr, "\x1b[33mSource IP Address:\x1b[0m %s\n", ip_address_to_string(hdr->src, addr, sizeof(addr)));
+    fprintf(stderr, "\x1b[33mDestination IP Address:\x1b[0m %s\n", ip_address_to_string(hdr->dst, addr, sizeof(addr)));
+
 #ifdef HEXDUMP
+    /* Print hexadecimal dump if enabled */
     hexdump(stderr, data, len);
 #endif
+
+    /* Unlock the standard error stream */
     funlockfile(stderr);
 }
 
@@ -139,7 +150,7 @@ static struct ip_route *ip_route_add(IPAddress network, IPAddress netmask, IPAdd
 
     route = memory_alloc(sizeof(*route));
     if (!route) {
-        errorf("memory_alloc() failure");
+        errorf("memory allocation failed");
         return NULL;
     }
     route->network = network;
@@ -203,7 +214,7 @@ struct IP_INTERFACE *ip_allocate_interface(const char *unicast, const char *netm
         return NULL;
     }
     if (ip_string_to_address(netmask, &iface->netmask) == -1) {
-        errorf("converting ip address to string() failure, addr=%s", netmask);
+        errorf("converting ip address to string failure, addr=%s", netmask);
         memory_free(iface);
         return NULL;
     }

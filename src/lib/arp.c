@@ -53,8 +53,7 @@ struct arp_cache {
 static mutex_t mutex = MUTEX_INITIALIZER;
 static struct arp_cache caches[ARP_CACHE_SIZE];
 
-static char *
-arp_opcode_ntoa(uint16_t opcode)
+static char * arp_opcode_ntoa(uint16_t opcode)
 {
     switch (ntoh16(opcode)) {
     case ARP_OP_REQUEST:

@@ -21,14 +21,14 @@ struct network_protocol {
     struct network_protocol *next;
     char name[MAX_NAME_LENGTH];
     uint16_t type;
-    struct queue_head queue; /* input queue */
+    struct queue_head queue; /* Queue for incoming packets */
     ProtocolHandler handler;
 };
 
 struct network_protocol_queue_entry {
     struct network_device *dev;
     size_t len;
-    uint8_t data[]; /* Flexible array member for storing data */
+    uint8_t data[];  /* Variable length data */
 };
 
 struct network_timer {
@@ -58,7 +58,7 @@ int network_device_close(struct network_device *dev);
 struct network_device *network_device_allocate(void (*setup)(struct network_device *dev)) {
     struct network_device *dev = memory_alloc(sizeof(*dev));
     if (!dev) {
-        errorf("memory_alloc() failure");
+        errorf("memory allocation failed");
         return NULL;
     }
     if (setup) {
