@@ -27,7 +27,7 @@ struct irq_entry *irq_vec;
 
 int intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *dev), int flags, const char *name, void *dev)
 {
-    debugf("irq=%u, handler=%p, flags=%d, name=%s, dev=%p", irq, handler, flags, name, dev);
+    debugf("interrupt_num=%u, handler=%p, flags=%d, name=%s, device=%p", irq, handler, flags, name, dev);
     struct irq_entry *entry;
     for (entry = irq_vec; entry; entry = entry->next) {
         if (entry->irq == irq) {
@@ -50,7 +50,7 @@ int intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *de
     entry->next = irq_vec;
     irq_vec = entry;
     sigaddset(&sigmask, irq);
-    debugf("registered: irq=%u, name=%s", irq, name);
+    debugf("interrupt registered: number =%u, name=%s", irq, name);
     return 0;
 }
 
@@ -59,11 +59,11 @@ static int intr_timer_setup(struct itimerspec *interval)
     timer_t id;
 
     if (timer_create(CLOCK_REALTIME, NULL, &id) == -1) {
-        errorf("timer_create: %s", strerror(errno));
+        errorf("timer creation failed: %s", strerror(errno));
         return -1;
     }
     if (timer_settime(id, 0, interval, NULL) == -1) {
-        errorf("timer_settime: %s", strerror(errno));
+        errorf("timer settime failed: %s", strerror(errno));
         return -1;
     }
     return 0;
@@ -82,7 +82,7 @@ static void * intr_thread(void *arg)
     while (1) {
         err = sigwait(&sigmask, &sig);
         if (err) {
-            errorf("sigwait() %s", strerror(err));
+            errorf("signal wait failed %s", strerror(err));
             break;
         }
         switch (sig) {
@@ -98,7 +98,7 @@ static void * intr_thread(void *arg)
         default:
             for (entry = irq_vec; entry; entry = entry->next) {
                 if (entry->irq == (unsigned int)sig) {
-                    debugf("irq=%d, name=%s", entry->irq, entry->name);
+                    debugf("interrupt_handler: number=%d, name=%s", entry->irq, entry->name);
                     entry->handler(entry->irq, entry->dev);
                 }
             }
@@ -116,12 +116,12 @@ int intr_run(void)
 
     err = pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
     if (err) {
-        errorf("pthread_sigmask() %s", strerror(err));
+        errorf(" sigmask failed  %s", strerror(err));
         return -1;
     }
     err = pthread_create(&tid, NULL, intr_thread, NULL);
     if (err) {
-        errorf("pthread_create() %s", strerror(err));
+        errorf("thread create failed %s", strerror(err));
         return -1;
     }
     return 0;

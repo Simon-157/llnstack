@@ -115,7 +115,7 @@ static void icmp_input(const uint8_t *data, size_t len, IPAddress src, IPAddress
         errorf("checksum error, sum=0x%04x, verify=0x%04x", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)data, len, -hdr->sum)));
         return;
     }
-    debugf("%s => %s, type=%s(%u), len=%zu, iface=%s",
+    debugf("%s => %s, type=%s(%u), length=%zu, interface=%s",
         ip_address_to_string(src, addr1, sizeof(addr1)),
         ip_address_to_string(dst, addr2, sizeof(addr2)),
         icmp_type_ntoa(hdr->type), hdr->type, len,
@@ -150,7 +150,7 @@ int icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data
     memcpy(hdr + 1, data, len);
     msg_len = sizeof(*hdr) + len;
     hdr->sum = cksum16((uint16_t *)hdr, msg_len, 0);
-    debugf("%s => %s, type=%s(%u), len=%zu",
+    debugf("%s => %s, type=%s(%u), length=%zu",
         ip_address_to_string(src, addr1, sizeof(addr1)),
         ip_address_to_string(dst, addr2, sizeof(addr2)),
         icmp_type_ntoa(hdr->type), hdr->type, msg_len);

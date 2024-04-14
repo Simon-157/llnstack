@@ -59,10 +59,8 @@ static void udp_dump(const uint8_t *data, size_t len)
 
     flockfile(stderr);
     hdr = (struct UDP_HEADER *)data;
-    fprintf(stderr, "        src: %u\n", ntoh16(hdr->src));
-    fprintf(stderr, "        dst: %u\n", ntoh16(hdr->dst));
-    fprintf(stderr, "        len: %u\n", ntoh16(hdr->len));
-    fprintf(stderr, "        sum: 0x%04x\n", ntoh16(hdr->sum));
+    fprintf(stderr, "        src: %u, dst: %u, len: %u, sum: 0x%04x\n",
+            ntoh16(hdr->src), ntoh16(hdr->dst), ntoh16(hdr->len), ntoh16(hdr->sum));
 #ifdef HEXDUMP
     hexdump(stderr, data, len);
 #endif
@@ -248,7 +246,7 @@ static void event_handler(void *arg)
 int initialize_udp_subsystem(void)
 {
     if (ip_register_protocol("UDP", UDP_PROTOCOL, udp_input) == -1) {
-        errorf("ip_protocol_register() failure");
+        errorf("ip register protocol failed");
         return -1;
     }
     network_event_subscribe(event_handler, NULL);
@@ -265,7 +263,7 @@ int open_new_udp_socket(void)
     mutex_lock(&mutex);
     pcb = udp_pcb_alloc();
     if (!pcb) {
-        errorf("udp_pcb_alloc() failure");
+        errorf("udp allocation failed");
         mutex_unlock(&mutex);
         return -1;
     }

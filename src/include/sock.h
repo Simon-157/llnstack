@@ -60,4 +60,4 @@ extern int sock_connect(int id, const struct sockaddr *addr, int addrlen);
 extern ssize_t sock_recv(int id, void *buf, size_t n);
 extern ssize_t sock_send(int id, const void *buf, size_t n);
 
-#endif
+#endif /* SOCK_H */
